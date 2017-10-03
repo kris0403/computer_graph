@@ -15,10 +15,7 @@
 using namespace std;
 #define TEXTURE_NUM 100
 unsigned int texObject[TEXTURE_NUM];
-float transmittance = 0.5f;
-float reflectance = 0.5f;
-int tr_counter = 5;
-int re_counter = 5;
+
 class sc//not yet done
 {
 public:
@@ -130,7 +127,8 @@ public:
 	vi::vi()
 	{
 		fstream view_file;//讀view_file
-		char view_name[] = "CornellBox.view";
+		//char view_name[] = "view.view";
+		char view_name[] = "Chess.view";
 		view_file.open(view_name, ios::in);
 		char temp[100];
 		string view[23];
@@ -245,7 +243,7 @@ public:
 		}
 		fstream light_file;//讀light_file
 		//char light_name[] = "light.light";
-		char light_name[] = "CornellBox.light";
+		char light_name[] = "Chess.light";
 		light_file.open(light_name, ios::in);
 		char line[100];
 		char* te;
@@ -373,13 +371,10 @@ void display()
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);//clear the buffer
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_STENCIL_TEST);
-	glEnable(GL_CULL_FACE);
 	glEnable(GL_ALPHA_TEST);//ambient
-	//glAlphaFunc(GL_GREATER, 0.5f);
-	//glDepthFunc(GL_LEQUAL);
-	glClearStencil(0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_ACCUM_BUFFER_BIT);
+	glAlphaFunc(GL_GREATER, 0.5f);
+	glDepthFunc(GL_LEQUAL);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//viewing and modeling transformation
 	glViewport(v_i.get_viewpoint(0), v_i.get_viewpoint(1), (GLsizei)v_i.get_viewpoint(2), (GLsizei)v_i.get_viewpoint(3));
 
@@ -396,23 +391,48 @@ void display()
 	lighting();
 
 	//glRotated(s.get_num(s.get_key_num(), 3), v_i.get_vup(0), v_i.get_vup(1), v_i.get_vup(2));
-	
-	//First
-	//everthing should pass depth, and mark mirror where doesn't be covered to 1
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_TRUE);
+
 	for (int j = 0; j < sc_vec.size(); j++)
 	{
-		if (j == sc_vec.size() - 1)
-		{
-			glStencilFunc(GL_ALWAYS, 1, 1);
-			glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-		}
 		glPushMatrix();
 		glTranslated(sc_vec[j].get_num(7), sc_vec[j].get_num(8), sc_vec[j].get_num(9));
 		glRotated(sc_vec[j].get_num(3), sc_vec[j].get_num(4), sc_vec[j].get_num(5), sc_vec[j].get_num(6));
 		glScaled(sc_vec[j].get_num(0), sc_vec[j].get_num(1), sc_vec[j].get_num(2));
-		
+		//bind texture
+		if (sc_vec[j].get_texture_type() == 1)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, texObject[sc_vec[j].get_object_num()]);
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		}
+		else if (sc_vec[j].get_texture_type() == 2)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, texObject[sc_vec[j].get_object_num() - 1]);///MAYBE WRONG
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+
+			glActiveTexture(GL_TEXTURE1);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, texObject[sc_vec[j].get_object_num()]);///MAYBE WRONG
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+		}
+		else if (sc_vec[j].get_texture_type() == 6)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+			glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+			glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP);
+			glEnable(GL_TEXTURE_GEN_S);
+			glEnable(GL_TEXTURE_GEN_T);
+			glEnable(GL_TEXTURE_GEN_R);
+			glEnable(GL_TEXTURE_CUBE_MAP);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, texObject[sc_vec[j].get_object_num()]);
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		}
+
 		int lastMaterial = -1;
 		for (size_t i = 0; i < sc_vec[j].object->fTotal; ++i)
 		{
@@ -449,194 +469,31 @@ void display()
 			}
 			glEnd();
 		}
+		if (sc_vec[j].get_texture_type() == 1){
+			glActiveTexture(GL_TEXTURE0);
+			glDisable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}
+		else if (sc_vec[j].get_texture_type() == 2){
+			glActiveTexture(GL_TEXTURE1);
+			glDisable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+			glActiveTexture(GL_TEXTURE0);
+			glDisable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}
+		else if (sc_vec[j].get_texture_type() == 6){
+			glActiveTexture(GL_TEXTURE0);
+			glDisable(GL_TEXTURE_CUBE_MAP);
+			glDisable(GL_TEXTURE_GEN_R);
+			glDisable(GL_TEXTURE_GEN_T);
+			glDisable(GL_TEXTURE_GEN_S);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+		}
+
 		glPopMatrix();
 	}
-	///second
-	//// show mirror (1) without the toysit head
-	glFrontFace(GL_CCW);
-	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDepthMask(GL_TRUE);
-	glStencilFunc(GL_EQUAL, 1, 255);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	for (int j = 0; j < sc_vec.size(); j++)
-	{
-		glPushMatrix();
-		glTranslated(sc_vec[j].get_num(7), sc_vec[j].get_num(8), sc_vec[j].get_num(9));
-		glRotated(sc_vec[j].get_num(3), sc_vec[j].get_num(4), sc_vec[j].get_num(5), sc_vec[j].get_num(6));
-		glScaled(sc_vec[j].get_num(0), sc_vec[j].get_num(1), sc_vec[j].get_num(2));
-		
-
-		int lastMaterial = -1;
-		for (size_t i = 0; i < sc_vec[j].object->fTotal; ++i)
-		{
-			// set material property if this face used different material
-			if (lastMaterial != sc_vec[j].object->faceList[i].m)
-			{
-				lastMaterial = (int)sc_vec[j].object->faceList[i].m;
-				if (j == sc_vec.size() - 1)
-				{
-					sc_vec[j].object->mList[lastMaterial].Ka[3] = 0.6f;
-					sc_vec[j].object->mList[lastMaterial].Kd[3] = 0.6f;
-					sc_vec[j].object->mList[lastMaterial].Ks[3] = 0.6f;
-				}
-				glMaterialfv(GL_FRONT, GL_AMBIENT, sc_vec[j].object->mList[lastMaterial].Ka);
-				glMaterialfv(GL_FRONT, GL_DIFFUSE, sc_vec[j].object->mList[lastMaterial].Kd);
-				glMaterialfv(GL_FRONT, GL_SPECULAR, sc_vec[j].object->mList[lastMaterial].Ks);
-				glMaterialfv(GL_FRONT, GL_SHININESS, &sc_vec[j].object->mList[lastMaterial].Ns);
-				//you can obtain the texture name by object->mList[lastMaterial].map_Kd
-				//load them once in the main function before mainloop
-				//bind them in display function here
-			}
-			glBegin(GL_TRIANGLES);
-			for (size_t tt = 0; tt<3; ++tt)
-			{
-				//textex corrd. s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr;
-				//glTexCoord2fv(s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr);
-				//textex corrd. object->tList[object->faceList[i][j].t].ptr
-				if (sc_vec[j].get_texture_type() == 1){
-					glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				else if (sc_vec[j].get_texture_type() == 2){
-					glMultiTexCoord2fv(GL_TEXTURE0, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-					glMultiTexCoord2fv(GL_TEXTURE1, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				else if (sc_vec[j].get_texture_type() == 6){
-					glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				glNormal3fv(sc_vec[j].object->nList[sc_vec[j].object->faceList[i][tt].n].ptr);
-				glVertex3fv(sc_vec[j].object->vList[sc_vec[j].object->faceList[i][tt].v].ptr);
-			}
-			glEnd();
-		}
-		glPopMatrix();
-	}
-
-	glDisable(GL_BLEND);
-	glAccum(GL_ACCUM, transmittance);////not do
-
-	////third
-	////reflect to the mirror which center is (-20, 20 , 0)
-	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	glFrontFace(GL_CW);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDepthMask(GL_TRUE);
-	glStencilFunc(GL_EQUAL, 1, 255);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	for (int j = 0; j < sc_vec.size(); j++)
-	{
-		if (sc_vec[j].get_num(7) > -20)
-		{
-			glPushMatrix();
-			glTranslated((-20)-(sc_vec[j].get_num(7) + 20), sc_vec[j].get_num(8), sc_vec[j].get_num(9));
-			glRotated(sc_vec[j].get_num(3), sc_vec[j].get_num(4), sc_vec[j].get_num(5), sc_vec[j].get_num(6));
-			glScaled(-sc_vec[j].get_num(0), sc_vec[j].get_num(1), sc_vec[j].get_num(2));
-
-
-			int lastMaterial = -1;
-			for (size_t i = 0; i < sc_vec[j].object->fTotal; ++i)
-			{
-				// set material property if this face used different material
-				if (lastMaterial != sc_vec[j].object->faceList[i].m)
-				{
-					lastMaterial = (int)sc_vec[j].object->faceList[i].m;
-					if (j == sc_vec.size() - 1)
-					{
-						sc_vec[j].object->mList[lastMaterial].Ka[3] = 0.6f;
-						sc_vec[j].object->mList[lastMaterial].Kd[3] = 0.6f;
-						sc_vec[j].object->mList[lastMaterial].Ks[3] = 0.6f;
-					}
-					glMaterialfv(GL_FRONT, GL_AMBIENT, sc_vec[j].object->mList[lastMaterial].Ka);
-					glMaterialfv(GL_FRONT, GL_DIFFUSE, sc_vec[j].object->mList[lastMaterial].Kd);
-					glMaterialfv(GL_FRONT, GL_SPECULAR, sc_vec[j].object->mList[lastMaterial].Ks);
-					glMaterialfv(GL_FRONT, GL_SHININESS, &sc_vec[j].object->mList[lastMaterial].Ns);
-					//you can obtain the texture name by object->mList[lastMaterial].map_Kd
-					//load them once in the main function before mainloop
-					//bind them in display function here
-				}
-				glBegin(GL_TRIANGLES);
-				for (size_t tt = 0; tt<3; ++tt)
-				{
-					//textex corrd. s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr;
-					//glTexCoord2fv(s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr);
-					//textex corrd. object->tList[object->faceList[i][j].t].ptr
-					if (sc_vec[j].get_texture_type() == 1){
-						glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-					}
-					else if (sc_vec[j].get_texture_type() == 2){
-						glMultiTexCoord2fv(GL_TEXTURE0, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-						glMultiTexCoord2fv(GL_TEXTURE1, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-					}
-					else if (sc_vec[j].get_texture_type() == 6){
-						glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-					}
-					glNormal3fv(sc_vec[j].object->nList[sc_vec[j].object->faceList[i][tt].n].ptr);
-					glVertex3fv(sc_vec[j].object->vList[sc_vec[j].object->faceList[i][tt].v].ptr);
-				}
-				glEnd();
-			}
-			glPopMatrix();
-		}
-	}
-	glAccum(GL_ACCUM, reflectance);//not do
-	glAccum(GL_RETURN, 1.0);
-	//////forth
-	///show everything color
-	glFrontFace(GL_CCW);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glDepthMask(GL_TRUE);
-	glStencilFunc(GL_EQUAL, 0, 255);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	for (int j = 0; j < sc_vec.size(); j++)
-	{
-		glPushMatrix();
-		glTranslated(sc_vec[j].get_num(7), sc_vec[j].get_num(8), sc_vec[j].get_num(9));
-		glRotated(sc_vec[j].get_num(3), sc_vec[j].get_num(4), sc_vec[j].get_num(5), sc_vec[j].get_num(6));
-		glScaled(sc_vec[j].get_num(0), sc_vec[j].get_num(1), sc_vec[j].get_num(2));
-
-
-		int lastMaterial = -1;
-		for (size_t i = 0; i < sc_vec[j].object->fTotal; ++i)
-		{
-			// set material property if this face used different material
-			if (lastMaterial != sc_vec[j].object->faceList[i].m)
-			{
-				lastMaterial = (int)sc_vec[j].object->faceList[i].m;
-				glMaterialfv(GL_FRONT, GL_AMBIENT, sc_vec[j].object->mList[lastMaterial].Ka);
-				glMaterialfv(GL_FRONT, GL_DIFFUSE, sc_vec[j].object->mList[lastMaterial].Kd);
-				glMaterialfv(GL_FRONT, GL_SPECULAR, sc_vec[j].object->mList[lastMaterial].Ks);
-				glMaterialfv(GL_FRONT, GL_SHININESS, &sc_vec[j].object->mList[lastMaterial].Ns);
-				//you can obtain the texture name by object->mList[lastMaterial].map_Kd
-				//load them once in the main function before mainloop
-				//bind them in display function here
-			}
-			glBegin(GL_TRIANGLES);
-			for (size_t tt = 0; tt<3; ++tt)
-			{
-				//textex corrd. s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr;
-				//glTexCoord2fv(s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr);
-				//textex corrd. object->tList[object->faceList[i][j].t].ptr
-				if (sc_vec[j].get_texture_type() == 1){
-					glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				else if (sc_vec[j].get_texture_type() == 2){
-					glMultiTexCoord2fv(GL_TEXTURE0, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-					glMultiTexCoord2fv(GL_TEXTURE1, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				else if (sc_vec[j].get_texture_type() == 6){
-					glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-				}
-				glNormal3fv(sc_vec[j].object->nList[sc_vec[j].object->faceList[i][tt].n].ptr);
-				glVertex3fv(sc_vec[j].object->vList[sc_vec[j].object->faceList[i][tt].v].ptr);
-			}
-			glEnd();
-		}
-		glPopMatrix();
-	}
-
-
 	glutSwapBuffers();
 	glutPostRedisplay();
 }
@@ -707,43 +564,6 @@ void keyboard(unsigned char key, int x, int y)
 		z_i = (-1)*v_i.get_eye(0)*sin((-1)*theta) + v_i.get_eye(2)*cos((-1)*theta);
 		v_i.change_eye(x_i, y_i, z_i);
 		break;
-	  /*'r' : increase reflectance 0.1f
-		'f' : decrease reflectance 0.1f
-		't' : increase transmittance 0.1f
-		'g' : decrease transmittance 0.1f*/
-
-	case 'r':
-		if (re_counter < 10)
-		{
-			reflectance += 0.1f;
-			re_counter += 1;
-		}
-		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
-		break;
-	case 'f':  
-		if (re_counter > 0)
-		{
-			reflectance -= 0.1f;
-			re_counter -= 1;
-		}
-		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
-		break;
-	case 't':
-		if (tr_counter < 10)
-		{
-			transmittance += 0.1f;
-			tr_counter += 1;
-		}
-		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
-		break;
-	case 'g':
-		if (tr_counter > 0)
-		{
-			transmittance -= 0.1f;
-			tr_counter -= 1;
-		}
-		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
-		break;
 	case '1':
 		s.set_key_num('1' - '0' - 1);
 		break;
@@ -778,7 +598,7 @@ void keyboard(unsigned char key, int x, int y)
 int main(int argc, char** argv)
 {
 	fstream scene_file;//讀scene_file
-	char scene_name[] = "CornellBox.scene";
+	char scene_name[] = "Chess.scene";
 	scene_file.open(scene_name);
 	char scene[1000];
 	if (!scene_file){//如果開啟檔案失敗，fp為0；成功，fp為非0
@@ -862,10 +682,11 @@ int main(int argc, char** argv)
 	}
 	scene_file.close();
 	glutInit(&argc, argv);
-	glutInitWindowSize(v_i.get_viewpoint(2), v_i.get_viewpoint(3));
+	glutInitWindowSize(1000, 1000);
 	glutInitWindowPosition(0, 0);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL | GLUT_ACCUM);
-	glutCreateWindow("reflection&&refraction");
+	//glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+	glutCreateWindow("Texture");
 	glewInit();
 	FreeImage_Initialise();
 	int n = 0;
