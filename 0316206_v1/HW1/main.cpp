@@ -3,7 +3,6 @@
 #include "glaux.h"
 #include "glut.h"
 #include "FreeImage.h"
-#include "ShaderLoader.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -20,12 +19,6 @@ float transmittance = 0.5f;
 float reflectance = 0.5f;
 int tr_counter = 5;
 int re_counter = 5;
-GLhandleARB	MyShader;
-GLhandleARB	phongShader;
-GLhandleARB	program;
-float geom_length = 0.5f;
-int  geom_segment_num = 15;
-vector<float> geom_gravity = { 0.0f, -0.1f, 0.0f};
 class sc//not yet done
 {
 public:
@@ -137,7 +130,7 @@ public:
 	vi::vi()
 	{
 		fstream view_file;//讀view_file
-		char view_name[] = "Peter.view";
+		char view_name[] = "CornellBox.view";
 		view_file.open(view_name, ios::in);
 		char temp[100];
 		string view[23];
@@ -252,7 +245,7 @@ public:
 		}
 		fstream light_file;//讀light_file
 		//char light_name[] = "light.light";
-		char light_name[] = "Peter.light";
+		char light_name[] = "CornellBox.light";
 		light_file.open(light_name, ios::in);
 		char line[100];
 		char* te;
@@ -359,10 +352,6 @@ void lighting()
 	// enable lighting
 	glEnable(GL_LIGHTING);
 
-	glEnable(GL_LINE_SMOOTH);
-	
-
-
 	for (int i = 0; i < l.get_light_counter(); i++)
 	{
 		GLfloat light_position[] = { l.get_light(i, 0), l.get_light(i, 1), l.get_light(i, 2), 1.0f };
@@ -379,7 +368,7 @@ void lighting()
 	l.set_ambient(3, 1.0);
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, l.get_ambient());
 }
-/*void display()
+void display()
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);//clear the buffer
 	glClearDepth(1.0f);
@@ -650,183 +639,7 @@ void lighting()
 
 	glutSwapBuffers();
 	glutPostRedisplay();
-}*/
-
-char *textFileRead(char *fn)
-{
-	FILE *fp;
-	char *content = NULL;
-
-	int count = 0;
-
-	if (fn != NULL) {
-
-		fp = fopen(fn, "rt");
-
-		if (fp != NULL) {
-
-			fseek(fp, 0, SEEK_END);
-			count = ftell(fp);
-			rewind(fp);
-
-			if (count > 0) {
-				content = (char *)malloc(sizeof(char)* (count + 1));
-				count = fread(content, sizeof(char), count, fp);
-				content[count] = '\0';
-			}
-			fclose(fp);
-
-		}
-	}
-
-	return content;
 }
-
-void LoadShaders()
-{
-	program = glCreateProgram();
-	if (program != 0)
-	{
-
-		ShaderLoad(program, "VertexNormalVisualizer.vert", GL_VERTEX_SHADER);
-		ShaderLoad(program, "VertexNormalVisualizer.geom", GL_GEOMETRY_SHADER);
-		ShaderLoad(program, "VertexNormalVisualizer.frag", GL_FRAGMENT_SHADER);
-	}
-	phongShader = glCreateProgram();
-	if (phongShader != 0)
-	{
-		ShaderLoad(phongShader, "PhongShading.vert", GL_VERTEX_SHADER);
-		ShaderLoad(phongShader, "PhongShading.frag", GL_FRAGMENT_SHADER);
-		//ShaderLoad(MyShader, "TextureMapping.vert", GL_VERTEX_SHADER);
-		//ShaderLoad(MyShader, "TextureMapping.frag", GL_FRAGMENT_SHADER);
-	}
-
-}
-
-void phong_LoadShaders()
-{
-	phongShader = glCreateProgram();
-	if (phongShader != 0)
-	{
-		ShaderLoad(phongShader, "PhongShading.vert", GL_VERTEX_SHADER);
-		ShaderLoad(phongShader, "PhongShading.frag", GL_FRAGMENT_SHADER);
-		//ShaderLoad(MyShader, "TextureMapping.vert", GL_VERTEX_SHADER);
-		//ShaderLoad(MyShader, "TextureMapping.frag", GL_FRAGMENT_SHADER);
-	}
-
-}
-void  draw(int a)
-{
-	for (int j = a; j < sc_vec.size(); j++)
-	{
-	glPushMatrix();
-	glTranslated(sc_vec[j].get_num(7), sc_vec[j].get_num(8), sc_vec[j].get_num(9));
-	glRotated(sc_vec[j].get_num(3), sc_vec[j].get_num(4), sc_vec[j].get_num(5), sc_vec[j].get_num(6));
-	glScaled(sc_vec[j].get_num(0), sc_vec[j].get_num(1), sc_vec[j].get_num(2));
-	//bind texture
-	if (sc_vec[j].get_texture_type() == 1)
-	{
-		
-		glUseProgram(phongShader);
-		glActiveTexture(GL_TEXTURE0);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, texObject[sc_vec[j].get_object_num()]);
-		//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		glUniform1i(glGetUniformLocation(phongShader, "myTexture"), 0);
-	
-	}
-	else{
-		glDepthMask(GL_FALSE);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glUseProgram(program);
-		glUniform1f(glGetUniformLocation(program, "length"), geom_length);
-		glUniform1i(glGetUniformLocation(program, "segment_num"), geom_segment_num);
-		glUniform3f(glGetUniformLocation(program, "gravity"), geom_gravity[0], geom_gravity[1], geom_gravity[2]);
-	}
-	int lastMaterial = -1;
-
-	for (size_t i = 0; i < sc_vec[j].object->fTotal; ++i)
-	{
-	// set material property if this face used different material
-	if (lastMaterial != sc_vec[j].object->faceList[i].m)
-	{
-	lastMaterial = (int)sc_vec[j].object->faceList[i].m;
-	glMaterialfv(GL_FRONT, GL_AMBIENT, sc_vec[j].object->mList[lastMaterial].Ka);
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, sc_vec[j].object->mList[lastMaterial].Kd);
-	glMaterialfv(GL_FRONT, GL_SPECULAR, sc_vec[j].object->mList[lastMaterial].Ks);
-	glMaterialfv(GL_FRONT, GL_SHININESS, &sc_vec[j].object->mList[lastMaterial].Ns);
-	//you can obtain the texture name by object->mList[lastMaterial].map_Kd
-	//load them once in the main function before mainloop
-	//bind them in display function here
-	}
-	glBegin(GL_TRIANGLES);
-	for (size_t tt = 0; tt<3; ++tt)
-	{
-	//textex corrd. s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr;
-	//glTexCoord2fv(s.get_object(j)->tList[s.get_object(j)->faceList[i][tt].t].ptr);
-	//textex corrd. object->tList[object->faceList[i][j].t].ptr
-	if (sc_vec[j].get_texture_type() == 1){
-	glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-	}
-	else if (sc_vec[j].get_texture_type() == 2){
-	glMultiTexCoord2fv(GL_TEXTURE0, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-	glMultiTexCoord2fv(GL_TEXTURE1, sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-	}
-	else if (sc_vec[j].get_texture_type() == 6){
-	glTexCoord2fv(sc_vec[j].object->tList[sc_vec[j].object->faceList[i][tt].t].ptr);
-	}
-	glNormal3fv(sc_vec[j].object->nList[sc_vec[j].object->faceList[i][tt].n].ptr);
-	glVertex3fv(sc_vec[j].object->vList[sc_vec[j].object->faceList[i][tt].v].ptr);
-	}
-	glEnd();
-	}
-	if (sc_vec[j].get_texture_type() == 1){
-	glActiveTexture(GL_TEXTURE0);
-	glDisable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	}
-	else {
-		glDepthMask(GL_TRUE);
-		glDisable(GL_BLEND);
-	}
-
-	glPopMatrix();
-	}
-
-}
-void display()
-{
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);//clear the buffer
-	glClearDepth(1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_ALPHA_TEST);//ambient
-	glAlphaFunc(GL_GREATER, 0.5f);
-	glDepthFunc(GL_LEQUAL);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_LINE_SMOOTH);
-	//viewing and modeling transformation
-	glViewport(v_i.get_viewpoint(0), v_i.get_viewpoint(1), (GLsizei)v_i.get_viewpoint(2), (GLsizei)v_i.get_viewpoint(3));
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(v_i.get_fovy(), (float)(v_i.get_viewpoint(2) / v_i.get_viewpoint(3)), v_i.get_dnear(), v_i.get_dfar());
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(v_i.get_eye(0), v_i.get_eye(1), v_i.get_eye(2),//eye
-		v_i.get_vat(0), v_i.get_vat(1), v_i.get_vat(2),//center
-		v_i.get_vup(0), v_i.get_vup(1), v_i.get_vup(2));//up
-
-	lighting();
-	draw(0);
-	glutSwapBuffers();
-	glutPostRedisplay();
-	
-}
-
-
-
 void reshape(GLsizei w, GLsizei h)
 {
 	v_i.change_width(w);
@@ -898,17 +711,38 @@ void keyboard(unsigned char key, int x, int y)
 		'f' : decrease reflectance 0.1f
 		't' : increase transmittance 0.1f
 		'g' : decrease transmittance 0.1f*/
-	case 'r': geom_length += 0.1f;
+
+	case 'r':
+		if (re_counter < 10)
+		{
+			reflectance += 0.1f;
+			re_counter += 1;
+		}
+		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
 		break;
-	case 'f': if (geom_length > 0.1f) geom_length -= 0.1f;
+	case 'f':  
+		if (re_counter > 0)
+		{
+			reflectance -= 0.1f;
+			re_counter -= 1;
+		}
+		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
 		break;
-	case 't': geom_segment_num += 1;
+	case 't':
+		if (tr_counter < 10)
+		{
+			transmittance += 0.1f;
+			tr_counter += 1;
+		}
+		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
 		break;
-	case 'g': if (geom_segment_num > 3) geom_segment_num -= 1;
-		break;
-	case 'y': geom_gravity[1] += 0.1f;
-		break;
-	case 'h': geom_gravity[1] -= 0.1f;
+	case 'g':
+		if (tr_counter > 0)
+		{
+			transmittance -= 0.1f;
+			tr_counter -= 1;
+		}
+		cout << "reflectance:" << reflectance << "  transmittance:" << transmittance << endl;
 		break;
 	case '1':
 		s.set_key_num('1' - '0' - 1);
@@ -944,7 +778,7 @@ void keyboard(unsigned char key, int x, int y)
 int main(int argc, char** argv)
 {
 	fstream scene_file;//讀scene_file
-	char scene_name[] = "Peter.scene";
+	char scene_name[] = "CornellBox.scene";
 	scene_file.open(scene_name);
 	char scene[1000];
 	if (!scene_file){//如果開啟檔案失敗，fp為0；成功，fp為非0
@@ -1031,7 +865,7 @@ int main(int argc, char** argv)
 	glutInitWindowSize(v_i.get_viewpoint(2), v_i.get_viewpoint(3));
 	glutInitWindowPosition(0, 0);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL | GLUT_ACCUM);
-	glutCreateWindow("peter");
+	glutCreateWindow("reflection&&refraction");
 	glewInit();
 	FreeImage_Initialise();
 	int n = 0;
@@ -1059,8 +893,7 @@ int main(int argc, char** argv)
 			n++;
 		}
 	}
-	FreeImage_DeInitialise();	
-	LoadShaders();
+	FreeImage_DeInitialise();
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutKeyboardFunc(keyboard);

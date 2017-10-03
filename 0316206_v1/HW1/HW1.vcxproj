@@ -85,19 +85,9 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="mesh.cpp" />
-    <ClCompile Include="ShaderLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mesh.h" />
-    <ClInclude Include="ShaderLoader.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="dll\Peter.scene" />
-    <None Include="dll\PhongShading.frag" />
-    <None Include="dll\PhongShading.vert" />
-    <None Include="dll\VertexNormalVisualizer.frag" />
-    <None Include="dll\VertexNormalVisualizer.geom" />
-    <None Include="dll\VertexNormalVisualizer.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
